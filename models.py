@@ -1,8 +1,8 @@
-from sqlalchemy import Column, Integer, String, ForeignKey, Boolean, Date
-from sqlalchemy import create_engine
+import datetime
+
+from sqlalchemy import Column, Integer, String, ForeignKey, Boolean, Date, create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import Session, sessionmaker, relationship, scoped_session
-import datetime
 
 
 Base = declarative_base()
@@ -26,7 +26,7 @@ class User(Base):
     __tablename__ = "user"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    user_id = Column(Integer)      # уникальный ID пользователя tg
+    user_id = Column(Integer)                   # уникальный ID пользователя tg
     name = Column(String)                       # имя пользователя в чате tg
     nick = Column(String)                       # nickname пользователя
     count = Column(Integer, default=0)          # количество дней
