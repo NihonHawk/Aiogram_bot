@@ -1,12 +1,14 @@
-import logging
 import numpy as np
 import datetime
+
+import logging
 from sqlalchemy import update
 from aiogram import Bot, Dispatcher, executor, types
+
 from models import User, Server, session
 
-# 5653693857:AAFA7C9XVYXjM0hsUo0mUc8Gep95DFnQot8
-API_TOKEN = '5915749321:AAGXwWG_FtLLqvGwNdwzWMk8hMf9MpqbFqk'
+
+API_TOKEN = ""
 PROXY_URL = ""
 
 # Configure logging
@@ -15,7 +17,6 @@ logging.basicConfig(level=logging.INFO)
 # Initialize bot and dispatcher
 bot = Bot(token=API_TOKEN, proxy=PROXY_URL)
 dp = Dispatcher(bot)
-
 
 def get_name(message):
     with open("names.txt", "r", encoding="utf-8") as text:
@@ -33,11 +34,11 @@ def server(message):
 ### BOT COMMANDS
 @dp.message_handler(commands=['start', 'help'])
 async def start(message: types.Message):
-    """ Print all avalible commands """
+    """ Вывод команд бота """
 
     server(message)
     await message.reply("Регистрация - /reg;\
-        \nВыбор пидора дня - /play;\
+        \nВыбор счастливчика дня - /play;\
         \nПросмотр участников - /players;\
         \nСтатистика - /stats;\
         \nСмена ника - /change;\
@@ -45,7 +46,7 @@ async def start(message: types.Message):
 
 @dp.message_handler(commands=['reg'])
 async def reg(message: types.Message):
-    """ Register new user """
+    """ Регистрация нового пользователя """
 
     if bool(session.query(User).filter_by(user_id=message.from_user.id, server_id=message.chat.id).first()):
         user = session.query(User).filter_by(user_id=message.from_user.id, server_id=message.chat.id).one()
@@ -59,12 +60,12 @@ async def reg(message: types.Message):
             server_id = message.chat.id
         ))
         session.commit()
-        await message.reply(f"Добро пожаловать в клуб \n<b>{nick}</b> - ({message.from_user.first_name}).", parse_mode="HTML")
+        await message.reply(f"Добро пожаловать \n<b>{nick}</b> - ({message.from_user.first_name}).", parse_mode="HTML")
         server(message)
 
 @dp.message_handler(commands=['change'])
 async def change(message: types.Message):
-    """ Change user nickname """
+    """ Изменение никнейма """
 
     if bool(session.query(User).filter_by(user_id=message.from_user.id, server_id=message.chat.id).first()):
         nick = get_name(message)
@@ -76,17 +77,18 @@ async def change(message: types.Message):
         session.commit()
         await message.reply(f"Твой новый ник - <i>{nick}</i>", parse_mode="HTML")
     else:
-        await message.reply("Чумба ты не зарегистрирован!")
+        await message.reply("Ты не зарегистрирован!")
 
 @dp.message_handler(commands=['play'])
 async def play(message: types.Message):
-    """ Pick a random player """
+    """ Выбор случайного пользователя из списка участников """
 
     if not bool(session.query(Server).filter_by(id=message.chat.id).first()) or not bool(session.query(User).filter_by(user_id=message.from_user.id, server_id=message.chat.id).first()):
         await message.reply("Перед использованием необходимо зарегистрироваться.\nИспользуйте команду /reg")
     else:
+        # Часовой регион сервера МСК+3часа
         if session.query(Server).filter_by(id=message.chat.id).one().date.month != (datetime.datetime.now() + datetime.timedelta(hours=3)).month:
-            await message.answer("Выбираю пидора прошлого месяца...")
+            await message.answer("Выбираю счастливчика прошлого месяца...")
             query = session.query(User).filter_by(server_id=message.chat.id).order_by(User.count.desc()).first()
             await message.answer(f"Наш победитель: {query.nick} ({query.name}) - {query.count} раз(а)")
             session.execute(
@@ -127,15 +129,15 @@ def pick_player(message):
                 .values(date=datetime.datetime.now().date())
         )# обновление даты 
         session.commit()
-        return f"Пидор дня: \n{names}"
+        return f"Счастливчик дня: \n{names}"
     else:
         # выводим текущего
         query = session.query(User).filter_by(server_id=message.chat.id, status=True).one()
-        return f"Пидор дня не изменился: \n{query.nick} - {query.name}"
+        return f"Счастливчик не изменился: \n{query.nick} - {query.name}"
 
 @dp.message_handler(commands=['players'])
 async def players(message: types.Message):
-    """ Print all players """
+    """ Отображение зарегситрированных пользователей """
 
     if not bool(session.query(Server).filter_by(id=message.chat.id).first()) or session.query(User).filter_by(server_id=message.chat.id).count() == 0:
         await message.answer("Игроков не обнаруженно" + "\n" + "Для регистрации используйте /reg")
@@ -147,7 +149,8 @@ async def players(message: types.Message):
 
 @dp.message_handler(commands=['stats'])
 async def stats(message: types.Message):
-    """ Print players stats """
+    """ Вывод статистики """
+
     if bool(session.query(Server).filter_by(id=message.chat.id).first()) and bool(session.query(User).filter_by(user_id=message.from_user.id, server_id=message.chat.id).first()):
         query = session.query(User).filter_by(server_id=message.chat.id).order_by(User.count.desc())
         text = "Статистика:\n\n"
@@ -167,7 +170,8 @@ all_content_types = ["text", "audio", "document", "photo", "sticker", "video", \
 
 @dp.message_handler(content_types=all_content_types)
 async def unknown_message(message: types.Message):
-    """ Reg all users who want play """
+    """ Принудительная регистрация """
+    
     if not bool(session.query(User).filter_by(user_id=message.from_user.id, server_id=message.chat.id).first()):
         session.add(User(
             user_id = message.from_user.id,
@@ -178,13 +182,14 @@ async def unknown_message(message: types.Message):
         )) # все активные пользователи будут зарегистрированы по сообщению
         server(message)
     text = message.text.lower()
-    if ("гусь пидор" in text) or ("гусь пидр" in text) or ("бот пидор" in text) or ("бот пидр" in text):
-        await message.reply_photo(r"http://img10.joyreactor.cc/pics/comment/sky-%28freedom%29-anime-art-artist-art-%D0%B4%D0%B5%D0%B2%D1%83%D1%88%D0%BA%D0%B0-3859283.jpeg")
 
 @dp.message_handler(content_types=["voice"])
 async def audio_messages(message: types.Message):
-    """ Private server settings """
-    if message.chat.id == int("-1001885840378"):
+    """ Приватные настройки для личной группы """
+    
+    # Удаление голосовых сообщений 
+    SERVER_ID = ""
+    if message.chat.id == int(SERVER_ID):
         await message.reply_photo(r"https://www.meme-arsenal.com/memes/ef41b7cf3e39a517dff3e91188725a41.jpg")
         await message.delete()
 
